@@ -1,1 +1,6 @@
-[{"h":1080,"name":"1-cover.jpg","query":"?shot=cover&photo=pier&layout=split&grade=sunset&caption=Sunset%20Heist&subtitle=A%20story%20in%20three%20frames","w":1080},{"h":900,"name":"2-editor.jpg","query":"?shot=editor&photo=boulevard&layout=grid&grade=neon&caption=Boulevard%20Queen&subtitle=Three%20frames%2C%20one%20night","w":1280},{"h":1350,"name":"3-cover.jpg","query":"?shot=cover&photo=boulevard&layout=grid&grade=neon&caption=Boulevard%20Queen&subtitle=Three%20frames%2C%20one%20night&size=portrait","w":1080},{"h":1920,"name":"4-cover.jpg","query":"?shot=cover&photo=pier&layout=hero&grade=dusk&caption=Neon%20Nights&subtitle=City%20after%20dark&size=story","w":1080}]
+[
+  { "name": "1-cover.jpg", "query": "?shot=cover&photo=pier&caption=Sunset%20Heist", "w": 1080, "h": 1080 },
+  { "name": "2-editor.jpg", "query": "?shot=editor&photo=boulevard&caption=Boulevard%20Queen", "w": 1280, "h": 720 },
+  { "name": "3-cover.jpg", "query": "?shot=cover&photo=boulevard&caption=Boulevard%20Queen&layout=grid&grade=neon&size=portrait&photo1=pier&photo2=boulevard&photo3=pier", "w": 1080, "h": 1350 },
+  { "name": "4-cover.jpg", "query": "?shot=cover&photo=pier&caption=Neon%20Nights&layout=strip&grade=dusk&size=story&photo1=pier&photo2=boulevard&photo3=pier", "w": 1080, "h": 1920 }
+]

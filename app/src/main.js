@@ -1,169 +1,204 @@
-// Sunset Cover Studio — wires the page: pick photos into panels, choose a layout,
-// grade and size, type the title, drag to crop, export the cover as a PNG.
-// A `?shot=` query sets up a fixed scene for a screenshot instead (./shots.js).
-import { drawCover, panelRects, photoSlots, blankSlot, SIZES, GRADES, LAYOUTS } from './cover.js';
-import { runShot } from './shots.js';
+// Sunset Cover Studio's editor: wires the controls to the state, renders the
+// preview on every change, and exports real PNGs. Photos never leave the tab.
+import { defaultState, LAYOUTS, GRADES, SIZES, SAMPLES } from './state.js';
+import { renderCover, exportPng, panelAt, panelRect, shiftPanel } from './cover.js';
+import { shotStateFromQuery } from './shots.js';
 
-const canvas = document.getElementById('cover');
-const titleInput = document.getElementById('title');
-const subtitleInput = document.getElementById('subtitle');
-const status = document.getElementById('status');
-const zoomInput = document.getElementById('zoom');
-const zoomLabel = document.getElementById('zoom-label');
+const shot = shotStateFromQuery();
+const state = shot ? shot.state : defaultState();
+const canvas = document.getElementById('preview');
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
 
-const state = {
-  size: 'square',
-  layout: 'split',
-  grade: 'sunset',
-  title: 'Sunset Heist',
-  subtitle: 'A story in three frames',
-  titlePos: 'bottom',
-  photos: [blankSlot(), blankSlot(), blankSlot()],
-  activeSlot: 0,
+window.__cover = {
+  state,
+  render,
+  exportPng: (size) => exportPng(state, size),
+  ready: false,
+  SIZES,
 };
-window.__coverState = state; // test hook for the verification probe
 
-function redraw() {
-  drawCover(canvas, state);
-  syncControls();
-}
-
-function syncControls() {
-  document.querySelectorAll('[data-layout]').forEach((b) => b.classList.toggle('on', b.dataset.layout === state.layout));
-  document.querySelectorAll('[data-grade]').forEach((b) => b.classList.toggle('on', b.dataset.grade === state.grade));
-  document.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('on', b.dataset.size === state.size));
-  document.querySelectorAll('[data-slot]').forEach((b) => {
-    b.classList.toggle('on', Number(b.dataset.slot) === state.activeSlot);
-    b.classList.toggle('filled', !!state.photos[Number(b.dataset.slot)].img);
-  });
-  document.querySelectorAll('[data-titlepos]').forEach((b) => b.classList.toggle('on', b.dataset.titlepos === state.titlePos));
-  const slot = state.photos[state.activeSlot];
-  zoomInput.value = String(slot.zoom);
-  zoomLabel.textContent = `${Math.round(slot.zoom * 100)}%`;
-  document.getElementById('slot-name').textContent = `Panel ${state.activeSlot + 1}`;
-}
-
-/** Loads an image from a URL, resolving to the image once it can be drawn. */
-export function loadImage(url) {
+function loadImage(src) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error(`cannot load ${src}`));
+    im.src = src;
   });
 }
 
-async function setPhoto(url, slotIndex) {
-  const img = await loadImage(url);
-  const slot = state.photos[slotIndex];
-  slot.img = img;
-  slot.zoom = 1;
-  slot.ox = 0;
-  slot.oy = 0;
-  redraw();
+async function ensurePhotos() {
+  for (const p of state.panels) {
+    if (p.img) continue;
+    try {
+      p.img = await loadImage(`samples/${p.photo}.jpg`);
+    } catch (e) {
+      // A panel with no photo draws its empty placeholder instead.
+    }
+  }
 }
 
-// Sample photos.
-document.getElementById('sample-pier').addEventListener('click', () => setPhoto('samples/pier.jpg', state.activeSlot));
-document.getElementById('sample-boulevard').addEventListener('click', () => setPhoto('samples/boulevard.jpg', state.activeSlot));
-// Uploaded photo goes into the active panel.
-document.getElementById('photo').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
+let renderQueued = false;
+async function render() {
+  if (renderQueued) return;
+  renderQueued = true;
+  await ensurePhotos();
+  renderCover(canvas, state);
+  renderQueued = false;
+  window.__cover.ready = true;
+  syncUI();
+}
+
+function syncUI() {
+  $$('[data-layout]').forEach((b) => b.classList.toggle('on', b.dataset.layout === state.layout));
+  $$('[data-grade]').forEach((b) => b.classList.toggle('on', b.dataset.grade === state.grade));
+  $$('[data-size]').forEach((b) => b.classList.toggle('on', b.dataset.size === state.size));
+  $$('[data-pos]').forEach((b) => b.classList.toggle('on', b.dataset.pos === state.titlePos));
+  $$('.slot').forEach((b, i) => {
+    b.classList.toggle('on', i === state.selected);
+    b.querySelector('.slot-photo').textContent = state.panels[i].photo;
+  });
+  const zoom = $('#zoom');
+  if (zoom) zoom.value = String(state.panels[state.selected].zoom || 1);
+  const title = $('#title');
+  if (title && document.activeElement !== title) title.value = state.title;
+  const subtitle = $('#subtitle');
+  if (subtitle && document.activeElement !== subtitle) subtitle.value = state.subtitle;
+}
+
+function bindSeg(attr, apply) {
+  $$(`[data-${attr}]`).forEach((b) => {
+    b.addEventListener('click', () => {
+      apply(b.dataset[attr]);
+      render();
+    });
+  });
+}
+
+bindSeg('layout', (v) => {
+  if (LAYOUTS.includes(v)) state.layout = v;
+});
+bindSeg('grade', (v) => {
+  if (GRADES.includes(v)) state.grade = v;
+});
+bindSeg('size', (v) => {
+  if (SIZES[v]) state.size = v;
+});
+bindSeg('pos', (v) => {
+  state.titlePos = v === 'top' ? 'top' : 'bottom';
+});
+
+$$('.slot').forEach((b, i) => {
+  b.addEventListener('click', () => {
+    state.selected = i;
+    render();
+  });
+});
+
+$$('[data-sample]').forEach((b) => {
+  b.addEventListener('click', async () => {
+    const panel = state.panels[state.selected];
+    panel.photo = b.dataset.sample;
+    panel.img = null;
+    panel.ox = 0;
+    panel.oy = 0;
+    panel.zoom = 1;
+    await render();
+  });
+});
+
+$('#upload').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
   if (!file) return;
-  await setPhoto(URL.createObjectURL(file), state.activeSlot);
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(url);
+    const panel = state.panels[state.selected];
+    panel.photo = file.name;
+    panel.img = img;
+    panel.ox = 0;
+    panel.oy = 0;
+    panel.zoom = 1;
+    await render();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
   e.target.value = '';
 });
 
-// Panel picker.
-document.querySelectorAll('[data-slot]').forEach((b) => {
-  b.addEventListener('click', () => { state.activeSlot = Number(b.dataset.slot); redraw(); });
+$('#zoom').addEventListener('input', (e) => {
+  state.panels[state.selected].zoom = Number(e.target.value);
+  render();
 });
 
-// Layout / grade / size / title position.
-document.querySelectorAll('[data-layout]').forEach((b) => {
-  b.addEventListener('click', () => { state.layout = b.dataset.layout; redraw(); });
-});
-document.querySelectorAll('[data-grade]').forEach((b) => {
-  b.addEventListener('click', () => { state.grade = b.dataset.grade; redraw(); });
-});
-document.querySelectorAll('[data-size]').forEach((b) => {
-  b.addEventListener('click', () => { state.size = b.dataset.size; redraw(); });
-});
-document.querySelectorAll('[data-titlepos]').forEach((b) => {
-  b.addEventListener('click', () => { state.titlePos = b.dataset.titlepos; redraw(); });
+$('#recenter').addEventListener('click', () => {
+  const panel = state.panels[state.selected];
+  panel.ox = 0;
+  panel.oy = 0;
+  panel.zoom = 1;
+  render();
 });
 
-titleInput.addEventListener('input', () => { state.title = titleInput.value; redraw(); });
-subtitleInput.addEventListener('input', () => { state.subtitle = subtitleInput.value; redraw(); });
-zoomInput.addEventListener('input', () => {
-  state.photos[state.activeSlot].zoom = Number(zoomInput.value);
-  redraw();
-});
-document.getElementById('recenter').addEventListener('click', () => {
-  const slot = state.photos[state.activeSlot];
-  slot.zoom = 1;
-  slot.ox = 0;
-  slot.oy = 0;
-  redraw();
-});
+let typeTimer = 0;
+function bindText(id, key) {
+  $(id).addEventListener('input', (e) => {
+    state[key] = e.target.value;
+    clearTimeout(typeTimer);
+    typeTimer = setTimeout(render, 150);
+  });
+}
+bindText('#title', 'title');
+bindText('#subtitle', 'subtitle');
 
-// Drag on the preview: click picks the panel, drag pans its photo.
-let drag = null;
-function panelAt(clientX, clientY) {
-  const r = canvas.getBoundingClientRect();
-  const x = (clientX - r.left) * (canvas.width / r.width);
-  const y = (clientY - r.top) * (canvas.height / r.height);
-  const rects = panelRects(state.layout, canvas.width, canvas.height);
-  for (let i = 0; i < photoSlots(state.layout); i++) {
-    const p = rects[i];
-    if (x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h) return { i, x, y };
+$('#export').addEventListener('click', async () => {
+  const btn = $('#export');
+  btn.disabled = true;
+  btn.textContent = 'Exporting…';
+  try {
+    const { blob } = await exportPng(state, state.size);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cover-${state.size}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Export PNG';
   }
-  return null;
+});
+
+// Drag the preview to pan the photo inside the selected panel.
+let drag = null;
+function canvasPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: ((e.clientX - r.left) / r.width) * canvas.width,
+    y: ((e.clientY - r.top) / r.height) * canvas.height,
+  };
 }
 canvas.addEventListener('pointerdown', (e) => {
-  const hit = panelAt(e.clientX, e.clientY);
-  if (!hit) return;
-  state.activeSlot = hit.i;
-  const slot = state.photos[hit.i];
-  drag = { cx: e.clientX, cy: e.clientY, ox: slot.ox, oy: slot.oy };
+  const p = canvasPoint(e);
+  const idx = panelAt(state, p.x, p.y, canvas.width, canvas.height);
+  if (idx < 0) return;
+  state.selected = idx;
+  drag = { x: p.x, y: p.y };
   canvas.setPointerCapture(e.pointerId);
-  redraw();
+  syncUI();
 });
 canvas.addEventListener('pointermove', (e) => {
   if (!drag) return;
-  const slot = state.photos[state.activeSlot];
-  const r = canvas.getBoundingClientRect();
-  const kx = canvas.width / r.width;
-  const ky = canvas.height / r.height;
-  slot.ox = drag.ox + (e.clientX - drag.cx) * kx;
-  slot.oy = drag.oy + (e.clientY - drag.cy) * ky;
-  redraw();
+  const p = canvasPoint(e);
+  shiftPanel(state, state.selected, p.x - drag.x, p.y - drag.y, canvas.width, canvas.height);
+  drag = { x: p.x, y: p.y };
+  render();
 });
-canvas.addEventListener('pointerup', () => { drag = null; });
-
-// Export the cover at the chosen size.
-document.getElementById('export').addEventListener('click', () => {
-  const size = SIZES[state.size];
-  canvas.toBlob((blob) => {
-    if (!blob) { status.textContent = 'Export failed.'; return; }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `cover-${size.w}x${size.h}.png`;
-    a.click();
-    status.textContent = `Saved cover-${size.w}x${size.h}.png`;
-  }, 'image/png');
+canvas.addEventListener('pointerup', () => {
+  drag = null;
+});
+canvas.addEventListener('pointercancel', () => {
+  drag = null;
 });
 
-// Fixed scene for a screenshot, or the live editor.
-const params = new URLSearchParams(location.search);
-const shot = params.get('shot');
-if (params.get('layout') && LAYOUTS[params.get('layout')]) state.layout = params.get('layout');
-if (params.get('grade') && GRADES[params.get('grade')]) state.grade = params.get('grade');
-if (params.get('size') && SIZES[params.get('size')]) state.size = params.get('size');
-if (params.get('caption') !== null) { state.title = params.get('caption'); titleInput.value = state.title; }
-if (params.get('subtitle') !== null) { state.subtitle = params.get('subtitle'); subtitleInput.value = state.subtitle; }
-if (shot) {
-  runShot(shot, params, setPhoto, redraw);
-} else {
-  redraw();
-}
+if (shot && shot.shot === 'cover') document.body.classList.add('shot-cover');
+render();

@@ -1,14 +1,29 @@
-// Fixed scenes for screenshots: ?shot=editor shows the page with sample photos;
-// ?shot=cover shows the cover alone. `photo` picks the first sample (samples/<photo>.jpg),
-// the other sample fills the second panel, and `caption`/`subtitle` the words.
-// window.__shotReady is set once painted.
-export async function runShot(shot, query, setPhoto, redraw) {
-  if (shot === 'cover') document.body.classList.add('shot-cover');
-  const photo = query.get('photo') ?? 'pier';
-  const other = photo === 'pier' ? 'boulevard' : 'pier';
-  await setPhoto(`samples/${photo}.jpg`, 0);
-  await setPhoto(`samples/${other}.jpg`, 1);
-  await setPhoto(`samples/${photo}.jpg`, 2);
-  redraw();
-  requestAnimationFrame(() => requestAnimationFrame(() => { window.__shotReady = true; }));
+// Screenshot mode: ?shot=cover|editor plus ?photo=, ?caption=, ?subtitle=,
+// ?layout=, ?grade=, ?size= and ?pos= set the cover up for a render, so a
+// screenshot is always a genuine render of the app itself.
+import { defaultState } from './state.js';
+
+export function shotStateFromQuery() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('shot')) return null;
+  const st = defaultState();
+  const photo = q.get('photo');
+  if (photo) st.panels.forEach((p) => {
+    p.photo = photo;
+    p.img = null;
+  });
+  for (let i = 0; i < 3; i++) {
+    const one = q.get(`photo${i + 1}`);
+    if (one) {
+      st.panels[i].photo = one;
+      st.panels[i].img = null;
+    }
+  }
+  if (q.get('caption')) st.title = q.get('caption');
+  if (q.get('subtitle')) st.subtitle = q.get('subtitle');
+  if (q.get('layout')) st.layout = q.get('layout');
+  if (q.get('grade')) st.grade = q.get('grade');
+  if (q.get('size')) st.size = q.get('size');
+  if (q.get('pos')) st.titlePos = q.get('pos');
+  return { shot: q.get('shot'), state: st };
 }
