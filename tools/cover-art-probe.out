@@ -1,0 +1,25 @@
+PASS recorder pid 25998 alive
+PASS editor loads, canvas present
+PASS title input default
+PASS pier photo loaded into panel 1
+PASS boulevard photo loaded into panel 2
+PASS layout is split
+PASS drag pans photo (ox changed) ox=120
+PASS zoom slider sets zoom zoom=1.8
+PASS recenter resets zoom/pan
+PASS caption edit applied
+PASS grade neon + title top
+PASS export square is a real PNG 1080x1080 bytes=1533619
+PASS export portrait is a real PNG 1080x1350 bytes=1777041
+PASS export story is a real PNG 1080x1920 bytes=2177595
+PASS grid layout selected
+PASS zero page errors
+PASS zero console errors
+PASS screenshot 1-cover.jpg <=256KiB 145384 B
+PASS screenshot 2-editor.jpg <=256KiB 127984 B
+PASS screenshot 3-cover.jpg <=256KiB 197751 B
+PASS screenshot 4-cover.jpg <=256KiB 173374 B
+PASS zero page errors after shots
+leftover firefox/playwright processes: 28453
+
+TOTAL: ALL PASS

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunset Cover Studio</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main class="app">
+  <section class="controls">
+    <h1>Sunset Cover Studio</h1>
+    <p class="tag">Your photo, a few panels, one poster. Everything stays on your machine.</p>
+
+    <div class="group">
+      <h2>Photos — <span id="slot-name">Panel 1</span></h2>
+      <div class="row" id="slots">
+        <button type="button" data-slot="0">Panel 1</button>
+        <button type="button" data-slot="1">Panel 2</button>
+        <button type="button" data-slot="2">Panel 3</button>
+      </div>
+      <div class="row">
+        <button type="button" id="sample-pier">Pier photo</button>
+        <button type="button" id="sample-boulevard">Boulevard photo</button>
+      </div>
+      <label>Upload your own <input id="photo" type="file" accept="image/*"></label>
+      <label>Zoom <span id="zoom-label">100%</span>
+        <input id="zoom" type="range" min="1" max="2.5" step="0.05" value="1">
+      </label>
+      <button type="button" id="recenter">Center photo</button>
+      <p class="hint">Click a panel in the preview to pick it, then drag the photo to crop it.</p>
+    </div>
+
+    <div class="group">
+      <h2>Layout</h2>
+      <div class="row">
+        <button type="button" data-layout="hero">Hero</button>
+        <button type="button" data-layout="split">Split</button>
+        <button type="button" data-layout="grid">Grid</button>
+        <button type="button" data-layout="strip">Strip</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Colour grade</h2>
+      <div class="row">
+        <button type="button" data-grade="sunset">Sunset</button>
+        <button type="button" data-grade="neon">Neon</button>
+        <button type="button" data-grade="dusk">Dusk</button>
+        <button type="button" data-grade="mono">Mono</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Size</h2>
+      <div class="row">
+        <button type="button" data-size="square">Square</button>
+        <button type="button" data-size="portrait">Portrait</button>
+        <button type="button" data-size="story">Story</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Words</h2>
+      <label>Title <input id="title" type="text" maxlength="30" value="Sunset Heist"></label>
+      <label>Subtitle <input id="subtitle" type="text" maxlength="40" value="A story in three frames"></label>
+      <div class="row">
+        <button type="button" data-titlepos="bottom">Title at bottom</button>
+        <button type="button" data-titlepos="top">Title at top</button>
+      </div>
+    </div>
+
+    <button id="export" type="button" class="primary">Export PNG</button>
+    <p id="status" role="status"></p>
+  </section>
+  <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
+</main>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
